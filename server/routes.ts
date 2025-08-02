@@ -2,6 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
+import { notificationService } from "./notificationService";
 import { insertTourSchema, insertPhotoSchema, insertTourReviewSchema } from "@shared/schema";
 import { z } from "zod";
 
@@ -56,6 +57,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const tourData = insertTourSchema.parse({ ...req.body, createdById: userId });
       
       const tour = await storage.createTour(tourData);
+      
+      // Trigger nearby user notifications in the background
+      notificationService.notifyNearbyUsers(tour.id).catch(error => {
+        console.error("Error sending nearby tour notifications:", error);
+      });
+      
       res.status(201).json(tour);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -194,6 +201,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       console.error("Error creating review:", error);
       res.status(500).json({ message: "Failed to create review" });
+    }
+  });
+
+  // Notification routes
+  app.get('/api/notifications', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const limit = parseInt(req.query.limit as string) || 20;
+      const notifications = await storage.getUserNotifications(userId, limit);
+      res.json(notifications);
+    } catch (error) {
+      console.error("Error fetching notifications:", error);
+      res.status(500).json({ message: "Failed to fetch notifications" });
+    }
+  });
+
+  app.patch('/api/notifications/:id/read', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const notificationId = req.params.id;
+      const success = await storage.markNotificationAsRead(notificationId, userId);
+      
+      if (success) {
+        res.json({ message: "Notification marked as read" });
+      } else {
+        res.status(400).json({ message: "Failed to mark notification as read" });
+      }
+    } catch (error) {
+      console.error("Error marking notification as read:", error);
+      res.status(500).json({ message: "Failed to mark notification as read" });
+    }
+  });
+
+  app.get('/api/notifications/unread-count', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const count = await storage.getUnreadNotificationCount(userId);
+      res.json({ count });
+    } catch (error) {
+      console.error("Error fetching unread notification count:", error);
+      res.status(500).json({ message: "Failed to fetch unread count" });
+    }
+  });
+
+  app.patch('/api/user/location-settings', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { latitude, longitude, location, notificationRadius, notificationsEnabled } = req.body;
+      
+      const success = await storage.updateUserLocationSettings(userId, {
+        latitude,
+        longitude,
+        location,
+        notificationRadius,
+        notificationsEnabled,
+      });
+      
+      if (success) {
+        res.json({ message: "Location settings updated successfully" });
+      } else {
+        res.status(400).json({ message: "Failed to update location settings" });
+      }
+    } catch (error) {
+      console.error("Error updating location settings:", error);
+      res.status(500).json({ message: "Failed to update location settings" });
     }
   });
 

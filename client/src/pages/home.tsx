@@ -2,17 +2,20 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Bell, Plus, Bike } from "lucide-react";
+import { Plus, Bike, Settings } from "lucide-react";
 import TourCard from "@/components/tour-card";
 import PhotoCard from "@/components/photo-card";
 import TourDetailModal from "@/components/tour-detail-modal";
 import TourCreationModal from "@/components/tour-creation-modal";
+import NotificationBell from "@/components/notification-bell";
+import LocationSettingsModal from "@/components/location-settings-modal";
 import { useState } from "react";
 
 export default function Home() {
   const { user } = useAuth();
   const [selectedTourId, setSelectedTourId] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showLocationSettings, setShowLocationSettings] = useState(false);
 
   // Fetch stats
   const { data: stats } = useQuery<{activeTours: number; totalRiders: number; completedTours: number}>({
@@ -42,13 +45,16 @@ export default function Home() {
             <Bike className="text-primary text-2xl" />
             <h1 className="font-display font-bold text-xl text-dark">RideConnect</h1>
           </div>
-          <div className="flex items-center space-x-3">
-            <button className="p-2 rounded-full hover:bg-gray-100 relative">
-              <Bell className="text-gray-600 h-5 w-5" />
-              <span className="absolute -top-1 -right-1 bg-primary text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                3
-              </span>
-            </button>
+          <div className="flex items-center space-x-2">
+            <NotificationBell />
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowLocationSettings(true)}
+              className="p-2 rounded-full hover:bg-gray-100"
+            >
+              <Settings className="h-5 w-5 text-gray-600" />
+            </Button>
             <button className="w-8 h-8 rounded-full overflow-hidden">
               <img
                 src={(user as any)?.profileImageUrl || "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=100&h=100&fit=crop&crop=face"}
@@ -169,6 +175,12 @@ export default function Home() {
       <TourCreationModal
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
+      />
+
+      {/* Location Settings Modal */}
+      <LocationSettingsModal
+        isOpen={showLocationSettings}
+        onClose={() => setShowLocationSettings(false)}
       />
     </>
   );
