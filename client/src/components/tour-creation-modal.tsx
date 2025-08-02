@@ -47,8 +47,8 @@ export default function TourCreationModal({ isOpen, onClose }: TourCreationModal
     startLocation: "",
     endLocation: "",
     startDate: "",
-    duration: "",
-    difficulty: "beginner",
+    duration: "12",
+    difficulty: "easy",
     maxParticipants: 10,
     price: 0,
   });
@@ -91,8 +91,8 @@ export default function TourCreationModal({ isOpen, onClose }: TourCreationModal
       startLocation: "",
       endLocation: "",
       startDate: "",
-      duration: "",
-      difficulty: "beginner",
+      duration: "12",
+      difficulty: "easy",
       maxParticipants: 10,
       price: 0,
     });
@@ -133,10 +133,23 @@ export default function TourCreationModal({ isOpen, onClose }: TourCreationModal
       return;
     }
 
+    // Calculate end date based on start date and duration
+    const startDate = new Date(formData.startDate);
+    const endDate = new Date(startDate);
+    endDate.setHours(startDate.getHours() + parseInt(formData.duration));
+
     const tourData = {
-      ...formData,
-      stops: stops,
+      title: formData.title,
+      description: formData.description,
+      startLocation: formData.startLocation,
+      endLocation: formData.endLocation,
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString(),
+      maxParticipants: parseInt(formData.maxParticipants.toString()),
+      price: formData.price.toString(),
+      difficulty: formData.difficulty,
       createdById: (user as any)?.id,
+      stops: stops,
     };
 
     createTourMutation.mutate(tourData);
@@ -318,9 +331,9 @@ export default function TourCreationModal({ isOpen, onClose }: TourCreationModal
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="beginner">Beginner</SelectItem>
-                  <SelectItem value="intermediate">Intermediate</SelectItem>
-                  <SelectItem value="advanced">Advanced</SelectItem>
+                  <SelectItem value="easy">Easy</SelectItem>
+                  <SelectItem value="moderate">Moderate</SelectItem>
+                  <SelectItem value="hard">Hard</SelectItem>
                 </SelectContent>
               </Select>
             </div>
