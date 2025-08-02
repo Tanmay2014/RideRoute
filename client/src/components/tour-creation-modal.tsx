@@ -6,6 +6,7 @@ import { apiRequest } from "@/lib/queryClient";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -149,6 +150,9 @@ export default function TourCreationModal({ isOpen, onClose }: TourCreationModal
             <MapPin className="h-5 w-5 text-primary" />
             <span>Create New Tour</span>
           </DialogTitle>
+          <DialogDescription>
+            Plan a new riding adventure with route details, stops, and participant management.
+          </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">
