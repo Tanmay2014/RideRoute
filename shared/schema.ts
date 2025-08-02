@@ -35,6 +35,10 @@ export const users = pgTable("users", {
   profileImageUrl: varchar("profile_image_url"),
   bio: text("bio"),
   location: varchar("location"),
+  latitude: decimal("latitude", { precision: 10, scale: 7 }), // GPS coordinates for precise location
+  longitude: decimal("longitude", { precision: 10, scale: 7 }),
+  notificationRadius: integer("notification_radius").default(50), // km radius for notifications
+  notificationsEnabled: boolean("notifications_enabled").default(true), // Enable/disable notifications
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -45,6 +49,10 @@ export const tours = pgTable("tours", {
   description: text("description"),
   startLocation: varchar("start_location").notNull(),
   endLocation: varchar("end_location").notNull(),
+  startLatitude: decimal("start_latitude", { precision: 10, scale: 7 }), // GPS coordinates for start location
+  startLongitude: decimal("start_longitude", { precision: 10, scale: 7 }),
+  endLatitude: decimal("end_latitude", { precision: 10, scale: 7 }), // GPS coordinates for end location
+  endLongitude: decimal("end_longitude", { precision: 10, scale: 7 }),
   startDate: timestamp("start_date").notNull(),
   endDate: timestamp("end_date").notNull(),
   maxParticipants: integer("max_participants").notNull(),
@@ -105,6 +113,19 @@ export const tourReviews = pgTable("tour_reviews", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Notifications table for nearby tour alerts
+export const notifications = pgTable("notifications", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  tourId: varchar("tour_id").notNull().references(() => tours.id, { onDelete: "cascade" }),
+  type: varchar("type", { enum: ["nearby_tour", "tour_update", "join_request", "reminder"] }).notNull(),
+  title: varchar("title").notNull(),
+  message: text("message").notNull(),
+  isRead: boolean("is_read").default(false),
+  distance: decimal("distance", { precision: 8, scale: 2 }), // Distance in km
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   createdTours: many(tours),
@@ -112,6 +133,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   photos: many(photos),
   photoLikes: many(photoLikes),
   tourReviews: many(tourReviews),
+  notifications: many(notifications),
 }));
 
 export const toursRelations = relations(tours, ({ one, many }) => ({
@@ -123,6 +145,7 @@ export const toursRelations = relations(tours, ({ one, many }) => ({
   participants: many(tourParticipants),
   photos: many(photos),
   reviews: many(tourReviews),
+  notifications: many(notifications),
 }));
 
 export const tourStopsRelations = relations(tourStops, ({ one }) => ({
@@ -176,6 +199,21 @@ export const tourReviewsRelations = relations(tourReviews, ({ one }) => ({
     references: [users.id],
   }),
 }));
+
+export const notificationsRelations = relations(notifications, ({ one }) => ({
+  user: one(users, {
+    fields: [notifications.userId],
+    references: [users.id],
+  }),
+  tour: one(tours, {
+    fields: [notifications.tourId],
+    references: [tours.id],
+  }),
+}));
+
+// Types
+export type InsertNotification = typeof notifications.$inferInsert;
+export type Notification = typeof notifications.$inferSelect;
 
 // Insert schemas
 export const insertTourSchema = createInsertSchema(tours).omit({

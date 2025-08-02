@@ -6,6 +6,7 @@ import {
   photos,
   photoLikes,
   tourReviews,
+  notifications,
   type User,
   type UpsertUser,
   type Tour,
@@ -18,6 +19,8 @@ import {
   type PhotoLike,
   type TourReview,
   type InsertTourReview,
+  type Notification,
+  type InsertNotification,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, sql, and, isNull } from "drizzle-orm";
@@ -48,6 +51,18 @@ export interface IStorage {
   // Review operations
   createTourReview(review: InsertTourReview): Promise<TourReview>;
   getTourReviews(tourId: string): Promise<(TourReview & { user: User })[]>;
+  
+  // Notification operations
+  getUserNotifications(userId: string, limit?: number): Promise<any[]>;
+  markNotificationAsRead(notificationId: string, userId: string): Promise<boolean>;
+  getUnreadNotificationCount(userId: string): Promise<number>;
+  updateUserLocationSettings(userId: string, settings: {
+    latitude?: number;
+    longitude?: number;
+    location?: string;
+    notificationRadius?: number;
+    notificationsEnabled?: boolean;
+  }): Promise<boolean>;
   
   // Stats
   getStats(): Promise<{ activeTours: number; totalRiders: number; completedTours: number }>;
@@ -247,6 +262,94 @@ export class DatabaseStorage implements IStorage {
       .innerJoin(users, eq(tourReviews.userId, users.id))
       .where(eq(tourReviews.tourId, tourId))
       .orderBy(desc(tourReviews.createdAt));
+  }
+
+  // Notification operations
+  async getUserNotifications(userId: string, limit: number = 20): Promise<any[]> {
+    const userNotifications = await db
+      .select({
+        id: notifications.id,
+        type: notifications.type,
+        title: notifications.title,
+        message: notifications.message,
+        isRead: notifications.isRead,
+        distance: notifications.distance,
+        createdAt: notifications.createdAt,
+        tour: {
+          id: tours.id,
+          title: tours.title,
+          startLocation: tours.startLocation,
+          startDate: tours.startDate,
+          imageUrl: tours.imageUrl,
+        },
+      })
+      .from(notifications)
+      .leftJoin(tours, eq(notifications.tourId, tours.id))
+      .where(eq(notifications.userId, userId))
+      .orderBy(sql`${notifications.createdAt} DESC`)
+      .limit(limit);
+
+    return userNotifications;
+  }
+
+  async markNotificationAsRead(notificationId: string, userId: string): Promise<boolean> {
+    try {
+      await db
+        .update(notifications)
+        .set({ isRead: true })
+        .where(
+          and(
+            eq(notifications.id, notificationId),
+            eq(notifications.userId, userId)
+          )
+        );
+      return true;
+    } catch (error) {
+      console.error("Error marking notification as read:", error);
+      return false;
+    }
+  }
+
+  async getUnreadNotificationCount(userId: string): Promise<number> {
+    const [result] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(notifications)
+      .where(
+        and(
+          eq(notifications.userId, userId),
+          eq(notifications.isRead, false)
+        )
+      );
+
+    return result?.count || 0;
+  }
+
+  async updateUserLocationSettings(userId: string, settings: {
+    latitude?: number;
+    longitude?: number;
+    location?: string;
+    notificationRadius?: number;
+    notificationsEnabled?: boolean;
+  }): Promise<boolean> {
+    try {
+      const updates: any = {};
+      
+      if (settings.latitude !== undefined) updates.latitude = settings.latitude.toString();
+      if (settings.longitude !== undefined) updates.longitude = settings.longitude.toString();
+      if (settings.location !== undefined) updates.location = settings.location;
+      if (settings.notificationRadius !== undefined) updates.notificationRadius = settings.notificationRadius;
+      if (settings.notificationsEnabled !== undefined) updates.notificationsEnabled = settings.notificationsEnabled;
+
+      await db
+        .update(users)
+        .set(updates)
+        .where(eq(users.id, userId));
+
+      return true;
+    } catch (error) {
+      console.error("Error updating user location settings:", error);
+      return false;
+    }
   }
 
   // Stats
