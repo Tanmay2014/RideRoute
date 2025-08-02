@@ -6,11 +6,13 @@ import { Bell, Plus, Bike } from "lucide-react";
 import TourCard from "@/components/tour-card";
 import PhotoCard from "@/components/photo-card";
 import TourDetailModal from "@/components/tour-detail-modal";
+import TourCreationModal from "@/components/tour-creation-modal";
 import { useState } from "react";
 
 export default function Home() {
   const { user } = useAuth();
   const [selectedTourId, setSelectedTourId] = useState<string | null>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   // Fetch stats
   const { data: stats } = useQuery<{activeTours: number; totalRiders: number; completedTours: number}>({
@@ -28,8 +30,7 @@ export default function Home() {
   });
 
   const handleCreateTour = () => {
-    // Navigate to tour creation - for now just show alert
-    alert("Tour creation coming soon!");
+    setShowCreateModal(true);
   };
 
   return (
@@ -163,6 +164,12 @@ export default function Home() {
           onClose={() => setSelectedTourId(null)}
         />
       )}
+
+      {/* Tour Creation Modal */}
+      <TourCreationModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+      />
     </>
   );
 }
